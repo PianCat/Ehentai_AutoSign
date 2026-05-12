@@ -1,0 +1,4 @@
+venv
+core/__pycache__/*
+notify.py
+Ehentai_UserConfig.yml
