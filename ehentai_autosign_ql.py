@@ -1,5 +1,5 @@
 '''
-cron: 0 8 * * *
+cron: 30 8 * * *
 new Env('Ehentai黎明之时签到')
 '''
 
