@@ -17,17 +17,16 @@ CONFIG_FILENAME = "Ehentai_UserConfig.yml"
 
 CONFIG_TEMPLATE = """\
 # Ehentai 自动签到配置
-# 支持多账户，每个账户需填写 cookie 和标识名 usertag
+# 将你的 Cookie 填写到下方 cookie 字段中
 # Cookie 格式: ipb_member_id=xxxxx; ipb_pass_hash=xxxxx
 # 可选字段: igneous=xxxxx
 ehentai:
-  # HTTP 代理配置（可选，国内用户需开启）
-  proxy:
+- cookie: ""
+  usertag: ""
+# HTTP 代理配置（可选）
+proxy:
     enabled: false
-    http: "http://127.0.0.1:7890"
-  accounts:
-    - cookie: ""
-      usertag: ""
+    proxyurl: ""
 """
 
 COOKIE_PATTERN = re.compile(r"ipb_member_id=(\w+).*ipb_pass_hash=(\w+)", re.DOTALL)
@@ -36,7 +35,7 @@ COOKIE_PATTERN = re.compile(r"ipb_member_id=(\w+).*ipb_pass_hash=(\w+)", re.DOTA
 @dataclass
 class ProxyConfig:
     enabled: bool = False
-    http: str = ""
+    proxyurl: str = ""
 
 
 @dataclass
@@ -65,9 +64,6 @@ def _create_default_config(path: Path) -> None:
 def load_config(config_dir: Path) -> AppConfig:
     """
     加载配置文件，不存在则自动创建模板。
-
-    config_dir: 配置文件所在目录
-    返回 AppConfig；若无有效账户则退出。
     """
     path = config_dir / CONFIG_FILENAME
 
@@ -78,19 +74,18 @@ def load_config(config_dir: Path) -> AppConfig:
         sys.exit(0)
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    ehentai = data.get("ehentai", {})
 
-    proxy_raw = ehentai.get("proxy", {}) or {}
+    proxy_raw = data.get("proxy", {}) or {}
     proxy = ProxyConfig(
         enabled=bool(proxy_raw.get("enabled", False)),
-        http=proxy_raw.get("http", ""),
+        proxyurl=proxy_raw.get("proxyurl", "") or "",
     )
 
-    accounts_raw = ehentai.get("accounts", []) or []
+    accounts_raw = data.get("ehentai", []) or []
     accounts = [
         AccountConfig(
-            cookie=acct.get("cookie", "").strip(),
-            usertag=acct.get("usertag", "").strip(),
+            cookie=(acct.get("cookie", "") or "").strip(),
+            usertag=(acct.get("usertag", "") or "").strip(),
         )
         for acct in accounts_raw
     ]

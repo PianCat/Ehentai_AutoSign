@@ -1,5 +1,5 @@
 '''
-cron: 30 8 * * *
+cron: 0 8 * * *
 new Env('Ehentai黎明之时签到')
 '''
 
@@ -59,8 +59,8 @@ def main():
         send_notify(False, "配置文件缺失或账户为空，请检查 /ql/data/config/Ehentai_UserConfig.yml")
         sys.exit(1)
 
-    if config.proxy.enabled and config.proxy.http:
-        notify_line(f"[代理] 已启用 HTTP 代理: {config.proxy.http}")
+    if config.proxy.enabled and config.proxy.proxyurl:
+        notify_line(f"[代理] 已启用 HTTP 代理: {config.proxy.proxyurl}")
 
     overall_success = True
     result_summary: list[str] = []

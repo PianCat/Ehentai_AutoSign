@@ -30,7 +30,7 @@ class EhentaiClient:
         self.session.headers.update({"User-Agent": USER_AGENT})
 
         self._setup_cookies()
-        if proxy and proxy.enabled and proxy.http:
+        if proxy and proxy.enabled and proxy.proxyurl:
             self._setup_proxy()
 
     def _setup_cookies(self) -> None:
@@ -49,7 +49,7 @@ class EhentaiClient:
 
     def _setup_proxy(self) -> None:
         """配置 HTTP 代理"""
-        proxy_url = self.proxy.http.strip()
+        proxy_url = self.proxy.proxyurl.strip()
         if proxy_url:
             self.session.proxies = {
                 "http": proxy_url,
@@ -58,8 +58,8 @@ class EhentaiClient:
 
     @property
     def proxy_str(self) -> str:
-        if self.proxy and self.proxy.enabled and self.proxy.http:
-            return self.proxy.http.strip()
+        if self.proxy and self.proxy.enabled and self.proxy.proxyurl:
+            return self.proxy.proxyurl.strip()
         return ""
 
     def get(self, url: str, **kwargs) -> requests.Response:

@@ -6,7 +6,7 @@
 
 - Cookie 登录（跳过服务器验证，仅本地校验格式）
 - 自动检测并完成黎明之时事件签到
-- **支持多账户**，通过 `usertag` 标识每个账户
+- 支持多账户，通过 `usertag` 标识每个账户
 - 支持 HTTP 代理
 - 青龙版集成 notify.py 多平台通知推送
 - 首次运行自动生成配置文件模板
@@ -24,20 +24,22 @@
 配置文件格式（普通版在脚本同目录，青龙版在 `/ql/data/config/`）：
 
 ```yaml
+# Ehentai 自动签到配置
 ehentai:
-  # HTTP 代理配置（可选，国内用户需开启）
-  proxy:
-    enabled: true
-    http: "http://172.17.0.1:7890"
-  accounts:
-    - cookie: "ipb_member_id=xxxxx; ipb_pass_hash=xxxxx"
-      usertag: "主号"
-    - cookie: "ipb_member_id=yyyyy; ipb_pass_hash=yyyyy"
-      usertag: "小号"
+- cookie: "ipb_member_id=xxxxx; ipb_pass_hash=xxxxx"
+  usertag: "主号"
+- cookie: "ipb_member_id=yyyyy; ipb_pass_hash=yyyyy"
+  usertag: "小号"
+# HTTP 代理配置（可选）
+proxy:
+    enabled: false
+    proxyurl: ""
 ```
 
 - `cookie`: E-Hentai 的 Cookie 字符串
 - `usertag`: 自定义标识名，用于日志和通知中区分账户
+- `proxy.enabled`: 是否启用代理（`true` / `false`）
+- `proxy.proxyurl`: HTTP 代理地址，国内用户可设为 `http://host:port`
 
 ## 普通用户
 

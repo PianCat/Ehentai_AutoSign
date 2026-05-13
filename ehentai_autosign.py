@@ -23,8 +23,8 @@ def main():
 
     config = load_config(CONFIG_DIR)
 
-    if config.proxy.enabled and config.proxy.http:
-        print(f"[代理] 已启用 HTTP 代理: {config.proxy.http}\n")
+    if config.proxy.enabled and config.proxy.proxyurl:
+        print(f"[代理] 已启用 HTTP 代理: {config.proxy.proxyurl}\n")
 
     for account in config.accounts:
         tag = account.usertag
