@@ -43,18 +43,17 @@ class EhentaiClient:
     # ─── Cookie 持久化 ───────────────────────────────────────
 
     def _session_cookie_dict(self) -> dict[str, str]:
-        """从 session 提取当前有效 Cookie（主域 e-hentai.org，过滤 nw/datatags 等）"""
+        """从 session 提取当前有效 Cookie（按名称去重，过滤 nw/datatags 等）"""
         result: dict[str, str] = {}
         for cookie in self.session.cookies:
-            if cookie.domain != "e-hentai.org":
-                continue
             if cookie.name in ("nw", "datatags"):
                 continue
             if cookie.name == "__utmp":
                 continue
             if cookie.name == "igneous" and cookie.value == "mystery":
                 continue
-            result[cookie.name] = cookie.value
+            if cookie.name not in result:
+                result[cookie.name] = cookie.value
         return result
 
     def save_cookies(self) -> None:
