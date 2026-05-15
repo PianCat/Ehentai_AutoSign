@@ -59,8 +59,26 @@ class EhentaiClient:
             pass
         return {}
 
+    def _session_cookie_dict(self) -> dict[str, str]:
+        """从 session 提取当前有效 Cookie（主域优先，过滤 nw/datatags 等）"""
+        result: dict[str, str] = {}
+        for cookie in self.session.cookies:
+            if cookie.domain != "e-hentai.org":
+                continue
+            if cookie.name in ("nw", "datatags"):
+                continue
+            if cookie.name == "__utmp":
+                continue
+            if cookie.name == "igneous" and cookie.value == "mystery":
+                continue
+            result[cookie.name] = cookie.value
+        return result
+
     def save_cookies(self) -> None:
-        """将当前会话 Cookie 持久化到磁盘"""
+        """
+        将会话 Cookie 持久化到磁盘。
+        自动比对变化并输出日志。
+        """
         all_data: dict[str, dict[str, str]] = {}
         try:
             if self._store_path.exists():
@@ -69,17 +87,24 @@ class EhentaiClient:
             pass
 
         tag = self.account.usertag
-        stored = all_data.get(tag, {})
-        for cookie in self.session.cookies:
-            if cookie.name in ("nw", "datatags"):
-                continue
-            if cookie.name == "__utmp":
-                continue
-            if cookie.name == "igneous" and cookie.value == "mystery":
-                continue
-            stored[cookie.name] = cookie.value
-        all_data[tag] = stored
+        old_cookies = all_data.get(tag, {})
+        new_cookies = self._session_cookie_dict()
 
+        added = {k: v for k, v in new_cookies.items() if k not in old_cookies}
+        updated = {k: v for k, v in new_cookies.items()
+                   if k in old_cookies and old_cookies[k] != v}
+        removed = {k: old_cookies[k] for k in old_cookies if k not in new_cookies}
+
+        if added:
+            print(f"[Cookie] 新增: {', '.join(f'{k}={v[:8]}...' if len(v) > 8 else f'{k}={v}' for k, v in added.items())}")
+        if updated:
+            print(f"[Cookie] 更新: {', '.join(updated.keys())}")
+        if removed:
+            print(f"[Cookie] 移除: {', '.join(removed.keys())}")
+        if not added and not updated and not removed:
+            print("[Cookie] 无变化")
+
+        all_data[tag] = new_cookies
         self._store_path.parent.mkdir(parents=True, exist_ok=True)
         self._store_path.write_text(
             json.dumps(all_data, indent=2, ensure_ascii=False), encoding="utf-8"
