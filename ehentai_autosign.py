@@ -2,7 +2,7 @@
 Ehentai 黎明之时自动签到脚本
 
 使用 Cookie 登录（跳过验证），自动检测并完成黎明之时事件签到。
-支持多账户，配置文件 Ehentai_UserConfig.yml 位于本脚本同目录下。
+支持多账户，Cookie 自动持久化，配置文件在同目录下。
 """
 
 import sys
@@ -37,19 +37,18 @@ def main():
         print("[信息] Cookie 已验证（跳过服务器验证模式）")
 
         try:
-            client = EhentaiClient(account, proxy=config.proxy)
+            client = EhentaiClient(account, proxy=config.proxy, config_dir=CONFIG_DIR)
         except Exception:
             print(f"[错误] 初始化客户端失败: {traceback.format_exc()}\n")
             continue
 
-        try:
-            dawn_info = check_dawn_event(client)
-        except Exception:
-            print(f"[错误] 签到请求异常: {traceback.format_exc()}\n")
-            continue
+        result = check_dawn_event(client)
+        client.save_cookies()
 
-        if dawn_info:
-            print(format_dawn_result(dawn_info))
+        if result.failed:
+            print(f"[错误] {result.error}\n")
+        elif result.success:
+            print(format_dawn_result(result.dawn_info))
         else:
             print(f"[结果] {tag}: 今日无黎明之时事件")
         print()

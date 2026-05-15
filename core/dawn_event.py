@@ -1,7 +1,8 @@
 """
 黎明之时事件签到模块
 
-从 e-hentai.org/news.php 获取事件信息并完成签到。
+对标 JHenTai 的 checkEHEvent()：只访问 news.php 检测 #eventpane。
+Cookie 持久化由 client 层管理，sk 缺失时自动从 home.php 引导获取。
 """
 
 from typing import Optional
@@ -10,44 +11,78 @@ from bs4 import BeautifulSoup
 
 from .client import EhentaiClient
 
+EHOME_URL = "https://e-hentai.org/home.php"
 ENEWS_URL = "https://e-hentai.org/news.php"
 
 
-def check_dawn_event(client: EhentaiClient) -> Optional[str]:
-    """
-    检查黎明之时事件，返回奖励文本；无事件时返回 None。
+class DawnResult:
+    def __init__(self, dawn_info: Optional[str] = None, error: Optional[str] = None):
+        self.dawn_info = dawn_info
+        self.error = error
 
-    对应 JHenTai 中 EHSpiderParser.newsPage2Event 的逻辑：
-    - 查找 HTML 中 id="eventpane" 的元素
-    - 提取 div > p:nth-child(2) 的文本作为奖励信息
+    @property
+    def success(self) -> bool:
+        return self.dawn_info is not None and self.error is None
+
+    @property
+    def no_event(self) -> bool:
+        return self.dawn_info is None and self.error is None
+
+    @property
+    def failed(self) -> bool:
+        return self.error is not None
+
+
+def _extract_dawn_info(html: str) -> Optional[str]:
+    soup = BeautifulSoup(html, "lxml")
+    event_pane = soup.select_one("#eventpane")
+    if event_pane is None:
+        return None
+    p_elements = event_pane.select("div > p")
+    if len(p_elements) >= 2:
+        return p_elements[1].get_text(strip=True)
+    return None
+
+
+def _bootstrap_sk(client: EhentaiClient) -> bool:
+    """首次运行：访问 home.php 获取 sk 等会话 Cookie"""
+    try:
+        resp = client.get(EHOME_URL)
+        resp.raise_for_status()
+        client.save_cookies()
+        print("[会话] 已从 home.php 引导获取 sk Cookie")
+        return True
+    except Exception as e:
+        print(f"[警告] 引导获取 sk 失败: {e}")
+        return False
+
+
+def check_dawn_event(client: EhentaiClient) -> DawnResult:
     """
+    检测黎明之时事件（仅访问 news.php）。
+    若缺失 sk cookie 则自动从 home.php 引导获取后重试。
+    """
+    # 首次运行无 sk → bootstrap
+    if not client.has_sk:
+        _bootstrap_sk(client)
+
     try:
         resp = client.get(ENEWS_URL)
         resp.raise_for_status()
     except Exception as e:
-        print(f"[错误] 访问 news.php 失败: {e}")
-        return None
+        return DawnResult(error=f"访问 news.php 失败: {e}")
 
-    soup = BeautifulSoup(resp.text, "lxml")
-    event_pane = soup.select_one("#eventpane")
-    if event_pane is None:
-        print("[信息] 当前无黎明之时事件")
-        return None
+    dawn_info = _extract_dawn_info(resp.text)
+    if dawn_info is not None:
+        return DawnResult(dawn_info=dawn_info)
 
-    dawn_text = None
-    p_elements = event_pane.select("div > p")
-    if len(p_elements) >= 2:
-        dawn_text = p_elements[1].get_text(strip=True)
-
-    return dawn_text
+    return DawnResult()
 
 
 def format_dawn_result(dawn_info: str) -> str:
-    """格式化签到结果为日志字符串"""
-    lines = [
+    return "\n".join([
         "=" * 50,
         "  黎明之时签到成功！",
         f"  奖励详情: {dawn_info}",
         "=" * 50,
-    ]
-    return "\n".join(lines)
+    ])

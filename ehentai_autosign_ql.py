@@ -6,9 +6,9 @@ new Env('Ehentai黎明之时签到')
 """
 Ehentai 黎明之时自动签到脚本（青龙面板版）
 
-使用 Cookie 登录（跳过验证），自动检测并完成黎明之时事件签到。
-支持多账户，配置文件位于 /ql/data/config/Ehentai_UserConfig.yml。
-集成青龙 notify.py 通知模块。
+使用 Cookie 登录（跳过验证），自动检测黎明之时事件。
+支持多账户，Cookie 自动持久化到 /ql/data/config/。
+配置位于 /ql/data/config/Ehentai_UserConfig.yml，集成 notify.py。
 """
 
 import sys
@@ -28,21 +28,17 @@ _notify_lines: list[str] = []
 
 
 def log(msg: str) -> None:
-    """记录完整日志到控制台"""
     print(msg)
     logs.append(msg)
 
 
 def notify_line(msg: str) -> None:
-    """记录通知摘要"""
     _notify_lines.append(msg)
 
 
 def send_notify(success: bool, summary: str) -> None:
-    """通过青龙通知模块发送精简推送"""
     try:
         import notify
-
         title = "Ehentai黎明之时签到 - 成功" if success else "Ehentai黎明之时签到 - 失败"
         content = "\n".join(_notify_lines) + f"\n{summary}"
         notify.send(title, content)
@@ -56,7 +52,7 @@ def main():
     try:
         config = load_config(CONFIG_DIR)
     except SystemExit:
-        send_notify(False, "配置文件缺失或账户为空，请检查 /ql/data/config/Ehentai_UserConfig.yml")
+        send_notify(False, "配置文件缺失或账户为空")
         sys.exit(1)
 
     if config.proxy.enabled and config.proxy.proxyurl:
@@ -77,31 +73,31 @@ def main():
         log(f"[信息] 账户: {tag}")
 
         try:
-            client = EhentaiClient(account, proxy=config.proxy)
+            client = EhentaiClient(account, proxy=config.proxy, config_dir=CONFIG_DIR)
         except Exception:
             log(f"[错误] 账户 {tag} 初始化客户端失败: {traceback.format_exc()}")
             notify_line(f"[信息] {tag} [错误] 初始化客户端失败")
             overall_success = False
             continue
 
-        try:
-            dawn_info = check_dawn_event(client)
-        except Exception:
-            log(f"[错误] 账户 {tag} 签到请求异常: {traceback.format_exc()}")
-            notify_line(f"[信息] {tag} [错误] 签到请求异常")
-            overall_success = False
-            continue
+        result = check_dawn_event(client)
+        client.save_cookies()
 
-        if dawn_info:
-            result = f"[结果] {tag}: 签到成功! {dawn_info}"
-            log(result)
-            notify_line(f"[信息] {tag} [结果] 签到成功! {dawn_info}")
+        if result.failed:
+            log(f"[错误] 账户 {tag}: {result.error}")
+            notify_line(f"[信息] {tag} [错误] {result.error}")
+            overall_success = False
+            msg = f"[结果] {tag}: {result.error}"
+        elif result.success:
+            msg = f"[结果] {tag}: 签到成功! {result.dawn_info}"
+            log(msg)
+            notify_line(f"[信息] {tag} [结果] 签到成功! {result.dawn_info}")
         else:
-            result = f"[结果] {tag}: 今日无黎明之时事件"
-            log(result)
+            msg = f"[结果] {tag}: 今日无黎明之时事件"
+            log(msg)
             notify_line(f"[信息] {tag} [结果] 今日无黎明之时事件")
 
-        result_summary.append(result)
+        result_summary.append(msg)
 
     send_notify(overall_success, "\n".join(result_summary))
 
