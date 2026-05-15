@@ -2,7 +2,7 @@
 HTTP 客户端模块
 
 基于 requests.Session，支持 Cookie 注入、HTTP 代理、
-以及运行间 Cookie 持久化（对标 JHenTai 的 EHCookieManager）。
+会话 Cookie 回写到 AccountConfig.session（对标 JHenTai 的 EHCookieManager）。
 """
 
 import json
@@ -21,7 +21,6 @@ USER_AGENT = (
 )
 
 DEFAULT_TIMEOUT = 30
-COOKIE_STORE_FILENAME = "Ehentai_Cookies.json"
 
 
 class EhentaiClient:
@@ -31,11 +30,9 @@ class EhentaiClient:
         self,
         account: AccountConfig,
         proxy: Optional[ProxyConfig] = None,
-        config_dir: Optional[Path] = None,
     ):
         self.account = account
         self.proxy = proxy
-        self._config_dir = config_dir or Path.cwd()
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": USER_AGENT})
 
@@ -43,24 +40,10 @@ class EhentaiClient:
         if proxy and proxy.enabled and proxy.proxyurl:
             self._setup_proxy()
 
-    @property
-    def _store_path(self) -> Path:
-        return self._config_dir / COOKIE_STORE_FILENAME
-
     # ─── Cookie 持久化 ───────────────────────────────────────
 
-    def _load_persisted_cookies(self) -> dict[str, str]:
-        """加载持久化 Cookie（按 usertag 隔离）"""
-        try:
-            if self._store_path.exists():
-                data = json.loads(self._store_path.read_text(encoding="utf-8"))
-                return data.get(self.account.usertag, {})
-        except Exception:
-            pass
-        return {}
-
     def _session_cookie_dict(self) -> dict[str, str]:
-        """从 session 提取当前有效 Cookie（主域优先，过滤 nw/datatags 等）"""
+        """从 session 提取当前有效 Cookie（主域 e-hentai.org，过滤 nw/datatags 等）"""
         result: dict[str, str] = {}
         for cookie in self.session.cookies:
             if cookie.domain != "e-hentai.org":
@@ -76,24 +59,15 @@ class EhentaiClient:
 
     def save_cookies(self) -> None:
         """
-        将会话 Cookie 持久化到磁盘。
-        自动比对变化并输出日志。
+        比对 session 与 account.session，输出变化并更新。
+        由主脚本调用 save_config() 最终回写 YAML。
         """
-        all_data: dict[str, dict[str, str]] = {}
-        try:
-            if self._store_path.exists():
-                all_data = json.loads(self._store_path.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+        old = self.account.session
+        new = self._session_cookie_dict()
 
-        tag = self.account.usertag
-        old_cookies = all_data.get(tag, {})
-        new_cookies = self._session_cookie_dict()
-
-        added = {k: v for k, v in new_cookies.items() if k not in old_cookies}
-        updated = {k: v for k, v in new_cookies.items()
-                   if k in old_cookies and old_cookies[k] != v}
-        removed = {k: old_cookies[k] for k in old_cookies if k not in new_cookies}
+        added = {k: v for k, v in new.items() if k not in old}
+        updated = {k: v for k, v in new.items() if k in old and old[k] != v}
+        removed = {k: old[k] for k in old if k not in new}
 
         if added:
             print(f"[Cookie] 新增: {', '.join(f'{k}={v[:8]}...' if len(v) > 8 else f'{k}={v}' for k, v in added.items())}")
@@ -104,11 +78,7 @@ class EhentaiClient:
         if not added and not updated and not removed:
             print("[Cookie] 无变化")
 
-        all_data[tag] = new_cookies
-        self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        self._store_path.write_text(
-            json.dumps(all_data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        self.account.session = new
 
     @property
     def has_sk(self) -> bool:
@@ -135,10 +105,10 @@ class EhentaiClient:
             for domain in ("e-hentai.org", "forums.e-hentai.org", "exhentai.org"):
                 jar.set(key.strip(), value.strip(), domain=domain)
 
-        # 加载持久化的服务器下发 Cookie（如 sk）
-        for key, value in self._load_persisted_cookies().items():
+        # 加载持久化的会话 Cookie（如 sk）
+        for key, value in self.account.session.items():
             if key in ("ipb_member_id", "ipb_pass_hash"):
-                continue  # 不覆盖用户手动提供的
+                continue
             for domain in ("e-hentai.org", "forums.e-hentai.org", "exhentai.org"):
                 jar.set(key, value, domain=domain)
 

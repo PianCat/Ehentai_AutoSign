@@ -7,8 +7,8 @@ new Env('Ehentai黎明之时签到')
 Ehentai 黎明之时自动签到脚本（青龙面板版）
 
 使用 Cookie 登录（跳过验证），自动检测黎明之时事件。
-支持多账户，Cookie 自动持久化到 /ql/data/config/。
-配置位于 /ql/data/config/Ehentai_UserConfig.yml，集成 notify.py。
+支持多账户，Cookie 自动持久化到 /ql/data/config/Ehentai_UserConfig.yml。
+集成 notify.py 通知模块。
 """
 
 import sys
@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from core.config import load_config, validate_cookie
+from core.config import load_config, save_config, validate_cookie
 from core.client import EhentaiClient
 from core.dawn_event import check_dawn_event
 
@@ -73,7 +73,7 @@ def main():
         log(f"[信息] 账户: {tag}")
 
         try:
-            client = EhentaiClient(account, proxy=config.proxy, config_dir=CONFIG_DIR)
+            client = EhentaiClient(account, proxy=config.proxy)
         except Exception:
             log(f"[错误] 账户 {tag} 初始化客户端失败: {traceback.format_exc()}")
             notify_line(f"[信息] {tag} [错误] 初始化客户端失败")
@@ -99,6 +99,7 @@ def main():
 
         result_summary.append(msg)
 
+    save_config(config)
     send_notify(overall_success, "\n".join(result_summary))
 
 

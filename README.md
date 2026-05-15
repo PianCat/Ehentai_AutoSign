@@ -8,7 +8,7 @@
 - 自动检测并完成黎明之时事件签到
 - 支持多账户，通过 `usertag` 标识每个账户
 - 首次运行自动从 E-Hentai 引导获取会话 Cookie（`sk`），后续跳过引导
-- 会话 Cookie 自动持久化到 `Ehentai_Cookies.json`
+- 会话 Cookie 自动持久化到配置文件的 `session` 字段
 - 支持 HTTP 代理
 - 青龙版集成 notify.py 多平台通知推送
 - 首次运行自动生成配置文件模板
@@ -139,8 +139,7 @@ Ehentai_AutoSign/
 ├── notify.py              # 青龙通知模块（多平台推送）
 ├── ehentai_autosign.py    # 普通版入口
 ├── ehentai_autosign_ql.py # 青龙面板版入口（集成通知）
-├── Ehentai_UserConfig.yml # 用户配置文件
-├── Ehentai_Cookies.json   # 自动持久化的会话 Cookie（sk 等）
+├── Ehentai_UserConfig.yml # 用户配置 + 会话 Cookie 持久化
 ├── requirements.txt
 └── README.md
 ```

@@ -3,6 +3,7 @@
 
 校验 cookie 格式，首次运行时创建配置模板。
 支持多账户列表，每个账户用 usertag 标识。
+会话 Cookie（sk 等）回写到 YAML 配置中持久化。
 """
 
 import re
@@ -42,6 +43,7 @@ class ProxyConfig:
 class AccountConfig:
     cookie: str = ""
     usertag: str = ""
+    session: dict[str, str] = field(default_factory=dict)
 
     @property
     def ipb_member_id(self) -> str:
@@ -53,6 +55,7 @@ class AccountConfig:
 class AppConfig:
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     accounts: list[AccountConfig] = field(default_factory=list)
+    _config_dir: Optional[Path] = None
 
 
 def _create_default_config(path: Path) -> None:
@@ -86,11 +89,12 @@ def load_config(config_dir: Path) -> AppConfig:
         AccountConfig(
             cookie=(acct.get("cookie", "") or "").strip(),
             usertag=(acct.get("usertag", "") or "").strip(),
+            session=(acct.get("session", {}) or {}),
         )
         for acct in accounts_raw
     ]
 
-    config = AppConfig(proxy=proxy, accounts=accounts)
+    config = AppConfig(proxy=proxy, accounts=accounts, _config_dir=config_dir)
 
     valid_accounts = [a for a in config.accounts if a.cookie and a.usertag]
     if not valid_accounts:
@@ -99,6 +103,37 @@ def load_config(config_dir: Path) -> AppConfig:
 
     config.accounts = valid_accounts
     return config
+
+
+def save_config(config: AppConfig) -> None:
+    """
+    回写配置到 YAML，包含更新后的 session Cookie。
+    """
+    if config._config_dir is None:
+        return
+
+    ehentai_data = [
+        {
+            "cookie": a.cookie,
+            "usertag": a.usertag,
+            "session": a.session,
+        }
+        for a in config.accounts
+    ]
+
+    output = {
+        "ehentai": ehentai_data,
+        "proxy": {
+            "enabled": config.proxy.enabled,
+            "proxyurl": config.proxy.proxyurl,
+        },
+    }
+
+    path = config._config_dir / CONFIG_FILENAME
+    path.write_text(
+        yaml.dump(output, allow_unicode=True, default_flow_style=False, sort_keys=False),
+        encoding="utf-8",
+    )
 
 
 def validate_cookie(cookie: str) -> bool:
