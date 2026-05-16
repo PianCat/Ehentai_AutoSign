@@ -33,14 +33,50 @@ class DawnResult:
         return self.error is not None
 
 
+DAWN_THREE = {"Credits", "GP", "Hath"}
+DAWN_FOUR = {"Credits", "GP", "Hath", "EXP"}
+
+
 def _extract_dawn_info(html: str) -> Optional[str]:
+    """
+    从 #eventpane 中提取黎明之时奖励文本。
+
+    不依赖固定位置选择器，改用关键词锚点匹配：
+    1. 优先：同时包含 Credits、GP、Hath 三者
+    2. 降级：包含 Credits、GP、Hath 中任意一个
+    3. 最终降级：包含 Credits、GP、Hath、EXP 中任意一个
+    """
     soup = BeautifulSoup(html, "lxml")
     event_pane = soup.select_one("#eventpane")
     if event_pane is None:
         return None
-    p_elements = event_pane.select("div > p")
-    if len(p_elements) >= 2:
-        return p_elements[1].get_text(strip=True)
+
+    candidates: list[tuple[int, str]] = []
+
+    for p in event_pane.select("p"):
+        text = p.get_text(strip=True)
+        if not text:
+            continue
+
+        present_three = sum(1 for kw in DAWN_THREE if kw in text)
+        present_four = sum(1 for kw in DAWN_FOUR if kw in text)
+
+        if present_three == 3:
+            # 三者全命中 → 最高优先级，直接返回
+            return text
+
+        if present_three >= 1:
+            # 命中至少一个 Credits/GP/Hath → 优先级 2
+            candidates.append((2, text))
+        elif present_four >= 1:
+            # 命中至少一个 Credits/GP/Hath/EXP → 优先级 3
+            candidates.append((3, text))
+
+    # 按优先级排序（数字越小越优先）
+    candidates.sort(key=lambda x: x[0])
+    if candidates:
+        return candidates[0][1]
+
     return None
 
 
