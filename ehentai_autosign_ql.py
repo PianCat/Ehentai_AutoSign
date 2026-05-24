@@ -4,7 +4,7 @@ new Env('Ehentai黎明之时签到')
 '''
 
 """
-Ehentai 黎明之时自动签到脚本（青龙面板版）
+Ehentai 黎明之时自动签到脚本
 
 使用 Cookie 登录（跳过验证），自动检测黎明之时事件。
 支持多账户，Cookie 自动持久化到 /ql/data/config/Ehentai_UserConfig.yml。
@@ -47,7 +47,7 @@ def send_notify(success: bool, summary: str) -> None:
 
 
 def main():
-    log("[Ehentai] 黎明之时签到脚本启动（青龙面板版）")
+    log("[Ehentai] 黎明之时签到脚本启动")
 
     try:
         config = load_config(CONFIG_DIR)
